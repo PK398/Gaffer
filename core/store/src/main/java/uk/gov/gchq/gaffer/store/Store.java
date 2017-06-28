@@ -99,8 +99,11 @@ import uk.gov.gchq.gaffer.store.schema.Schema;
 import uk.gov.gchq.gaffer.store.schema.SchemaElementDefinition;
 import uk.gov.gchq.gaffer.store.schema.SchemaOptimiser;
 import uk.gov.gchq.gaffer.store.schema.ViewValidator;
+import uk.gov.gchq.gaffer.store.schema.library.SchemaLibrary;
 import uk.gov.gchq.gaffer.user.User;
 import uk.gov.gchq.koryphe.ValidationResult;
+
+import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -130,6 +133,8 @@ public abstract class Store {
      */
     private Schema schema;
 
+    private Schema originalSchema;
+
     /**
      * The store properties - contains specific configuration information for the store - such as database connection strings.
      */
@@ -139,6 +144,8 @@ public abstract class Store {
 
     private JobTracker jobTracker;
     private ExecutorService executorService;
+    private SchemaLibrary schemaLibrary;
+    private String graphId;
 
     public Store() {
         this.requiredParentSerialiserClass = getRequiredParentSerialiserClass();
@@ -146,14 +153,36 @@ public abstract class Store {
         this.schemaOptimiser = createSchemaOptimiser();
     }
 
-    public void initialise(final Schema schema, final StoreProperties properties) throws StoreException {
-        this.schema = schema;
+    public void initialise(final String graphId, final Schema schema, final StoreProperties properties) throws StoreException {
+        this.graphId = graphId;
+        this.originalSchema = schema;
+        this.schema = null != schema ? schema.clone() : schema;
         this.properties = properties;
+        this.schemaLibrary = createSchemaLibrary();
         startCacheServiceLoader(properties);
         this.jobTracker = createJobTracker(properties);
 
         optimiseSchema();
         validateSchemas();
+        addOpHandlers();
+        addExecutorService();
+        addSchemaToLibrary(graphId);
+    }
+
+
+    public void initialise(final String graphId, final StoreProperties properties) throws StoreException {
+        this.properties = properties;
+        startCacheServiceLoader(properties);
+        this.jobTracker = createJobTracker(properties);
+        this.schemaLibrary = createSchemaLibrary();
+
+        this.schema = schemaLibrary.get(graphId);
+        if(this.schema==null){throw new InvalidParameterException(String.format("The schema was not found for graphId: %s", graphId));}
+        this.originalSchema = schemaLibrary.getOriginal(graphId);
+
+        // don't optimise the schema here just use the previously stored schema
+        validateSchemas();
+        
         addOpHandlers();
         addExecutorService();
     }
@@ -351,6 +380,10 @@ public abstract class Store {
         return lazyElement.getElement();
     }
 
+    public String getGraphId() {
+        return graphId;
+    }
+
     /**
      * Get this Store's {@link Schema}.
      *
@@ -359,6 +392,10 @@ public abstract class Store {
      */
     public Schema getSchema() {
         return schema;
+    }
+
+    public Schema getOriginalSchema() {
+        return originalSchema;
     }
 
     /**
@@ -406,6 +443,22 @@ public abstract class Store {
             throw new SchemaException("Schema is not valid. "
                     + validationResult.getErrorString());
         }
+    }
+
+    protected SchemaLibrary createSchemaLibrary() throws StoreException {
+        final SchemaLibrary newSchemaLibrary;
+        final String schemaLibraryClassName = properties.getSchemaLibraryClass();
+        try {
+            newSchemaLibrary = Class.forName(schemaLibraryClassName).asSubclass(SchemaLibrary.class).newInstance();
+        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+            throw new StoreException("Unable to create schema library of type: " + schemaLibraryClassName, e);
+        }
+        newSchemaLibrary.initialise(this);
+        return newSchemaLibrary;
+    }
+
+    protected void addSchemaToLibrary(final String graphId) {
+        schemaLibrary.add(graphId, schema, originalSchema);
     }
 
     protected void validateSchema(final ValidationResult validationResult, final Serialiser serialiser) {

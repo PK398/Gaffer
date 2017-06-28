@@ -26,6 +26,8 @@ import uk.gov.gchq.gaffer.commonutil.StreamUtil;
 import uk.gov.gchq.gaffer.data.elementdefinition.exception.SchemaException;
 import uk.gov.gchq.gaffer.store.operationdeclaration.OperationDeclarations;
 import uk.gov.gchq.gaffer.store.schema.Schema;
+import uk.gov.gchq.gaffer.store.schema.library.SchemaLibrary;
+import uk.gov.gchq.gaffer.store.schema.library.TempSchemaLibrary;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -47,6 +49,9 @@ public class StoreProperties implements Cloneable {
     public static final String OPERATION_DECLARATIONS = "gaffer.store.operation.declarations";
 
     public static final String JOB_TRACKER_ENABLED = "gaffer.store.job.tracker.enabled";
+
+    public static final String SCHEMA_LIBRARY_CLASS = "gaffer.store.schema.library.class";
+    public static final String SCHEMA_LIBRARY_CLASS_DEFAULT = TempSchemaLibrary.class.getName();
 
     public static final String EXECUTOR_SERVICE_THREAD_COUNT = "gaffer.store.job.executor.threads";
     private static final String EXECUTOR_SERVICE_THREAD_COUNT_DEFAULT = "50";
@@ -135,6 +140,19 @@ public class StoreProperties implements Cloneable {
 
     public void setStoreClass(final String storeClass) {
         set(STORE_CLASS, storeClass);
+    }
+
+    public String getSchemaLibraryClass() {
+        return get(SCHEMA_LIBRARY_CLASS, SCHEMA_LIBRARY_CLASS_DEFAULT);
+    }
+
+    @JsonIgnore
+    public void setSchemaLibraryClass(final Class<? extends SchemaLibrary> schemaLibraryClass) {
+        setSchemaLibraryClass(schemaLibraryClass.getName());
+    }
+
+    public void setSchemaLibraryClass(final String schemaLibraryClass) {
+        set(SCHEMA_LIBRARY_CLASS, schemaLibraryClass);
     }
 
     public Boolean getJobTrackerEnabled() {

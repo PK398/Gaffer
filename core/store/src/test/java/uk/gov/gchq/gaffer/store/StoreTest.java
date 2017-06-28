@@ -176,7 +176,7 @@ public class StoreTest {
 
         // When
         try {
-            store.initialise(mySchema, properties);
+            store.initialise("graphId", mySchema, properties);
             fail();
         } catch (final SchemaException exception) {
             assertNotNull(exception.getMessage());
@@ -198,7 +198,7 @@ public class StoreTest {
         given(properties.getJobExecutorThreadCount()).willReturn(1);
 
         // When
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // Then
         assertNotNull(store.getOperationHandlerExposed(Validate.class));
@@ -228,7 +228,7 @@ public class StoreTest {
         final StoreProperties properties = mock(StoreProperties.class);
         given(properties.getJobExecutorThreadCount()).willReturn(1);
         final AddElements addElements = new AddElements();
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         store.execute(addElements, user);
@@ -245,7 +245,7 @@ public class StoreTest {
         given(properties.getJobExecutorThreadCount()).willReturn(1);
         final Operation operation = mock(Operation.class);
         final StoreImpl store = new StoreImpl();
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         store.handleOperation(operation, context);
@@ -264,7 +264,7 @@ public class StoreTest {
         final StoreImpl store = new StoreImpl();
         final OperationHandler opHandler = mock(OperationHandler.class);
         store.addOperationHandler(Operation.class, opHandler);
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         given(opHandler.doOperation(operation, context, store)).willThrow(new RuntimeException());
 
@@ -290,7 +290,7 @@ public class StoreTest {
         ValidationResult validationResult = new ValidationResult();
         validationResult.addError("error");
         given(operationChainValidator.validate(opChain, user, store)).willReturn(validationResult);
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When / Then
         try {
@@ -310,7 +310,7 @@ public class StoreTest {
         final Operation operation = mock(Operation.class);
         given(properties.getJobExecutorThreadCount()).willReturn(1);
 
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         store.execute(operation, user);
@@ -331,7 +331,7 @@ public class StoreTest {
         given(lazyElement.getElement()).willReturn(entity);
         given(properties.getJobExecutorThreadCount()).willReturn(1);
 
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         final Element result = store.populateElement(lazyElement);
@@ -363,7 +363,7 @@ public class StoreTest {
         given(getElementsHandler.doOperation(getElements, context, store))
                 .willReturn(getElementsResult);
 
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         final CloseableIterable<? extends Element> result = store.execute(opChain, user);
@@ -379,7 +379,7 @@ public class StoreTest {
         final StoreProperties properties = mock(StoreProperties.class);
         given(properties.getJobExecutorThreadCount()).willReturn(1);
         final int expectedNumberOfOperations = 33;
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         final Set<Class<? extends Operation>> supportedOperations = store.getSupportedOperations();
@@ -396,7 +396,7 @@ public class StoreTest {
         final Schema schema = createSchemaMock();
         final StoreProperties properties = mock(StoreProperties.class);
         given(properties.getJobExecutorThreadCount()).willReturn(1);
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // WHen
         final Set<Class<? extends Operation>> supportedOperations = store.getSupportedOperations();
@@ -415,7 +415,7 @@ public class StoreTest {
         final Schema schema = createSchemaMock();
         final StoreProperties properties = mock(StoreProperties.class);
         given(properties.getJobExecutorThreadCount()).willReturn(1);
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         final boolean supported = store.isSupported(Operation.class);
@@ -430,7 +430,7 @@ public class StoreTest {
         final Schema schema = createSchemaMock();
         final StoreProperties properties = mock(StoreProperties.class);
         given(properties.getJobExecutorThreadCount()).willReturn(1);
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         final boolean supported = store.isSupported(null);
@@ -452,7 +452,7 @@ public class StoreTest {
         given(properties.getJobTrackerEnabled()).willReturn(true);
         final Store store = new StoreImpl();
         final Schema schema = new Schema();
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         final JobDetail resultJobDetail = store.executeJob(opChain, user);
@@ -479,7 +479,7 @@ public class StoreTest {
         given(properties.getJobTrackerEnabled()).willReturn(true);
         final Store store = new StoreImpl();
         final Schema schema = new Schema();
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
 
         // When
         final JobDetail resultJobDetail = store.executeJob(opChain, user);
@@ -504,7 +504,7 @@ public class StoreTest {
         given(properties.getJobTrackerEnabled()).willReturn(true);
         final Store store = new StoreImpl();
         final Schema schema = new Schema();
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
         // When
         final JobTracker resultJobTracker = store.getJobTracker();
 
@@ -552,7 +552,7 @@ public class StoreTest {
                 protected Class<? extends Serialiser> getRequiredParentSerialiserClass() {
                     return validSerialiserInterface;
                 }
-            }.initialise(invalidSchema, properties);
+            }.initialise("graphId", invalidSchema, properties);
         } catch (SchemaException e) {
             assertTrue(e.getMessage().contains(invalidSerialiserClass.getSimpleName()));
             throw e;
