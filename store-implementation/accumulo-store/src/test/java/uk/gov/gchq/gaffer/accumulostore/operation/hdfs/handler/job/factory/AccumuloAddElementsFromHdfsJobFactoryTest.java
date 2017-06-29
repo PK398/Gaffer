@@ -131,7 +131,7 @@ public class AccumuloAddElementsFromHdfsJobFactoryTest {
         final Schema schema = Schema.fromJson(StreamUtil.schemas(AccumuloAddElementsFromHdfsJobFactoryTest.class));
         final AccumuloProperties properties = AccumuloProperties
                 .loadStoreProperties(StreamUtil.storeProps(AccumuloAddElementsFromHdfsJobFactoryTest.class));
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
         final JobConf localConf = createLocalConf();
         final FileSystem fs = FileSystem.getLocal(localConf);
         fs.mkdirs(new Path(outputDir));
@@ -195,7 +195,7 @@ public class AccumuloAddElementsFromHdfsJobFactoryTest {
         final Schema schema = Schema.fromJson(StreamUtil.schemas(AccumuloAddElementsFromHdfsJobFactoryTest.class));
         final AccumuloProperties properties = AccumuloProperties
                 .loadStoreProperties(StreamUtil.storeProps(AccumuloAddElementsFromHdfsJobFactoryTest.class));
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
         final JobConf localConf = createLocalConf();
         final FileSystem fs = FileSystem.getLocal(localConf);
         fs.mkdirs(new Path(outputDir));
@@ -259,7 +259,7 @@ public class AccumuloAddElementsFromHdfsJobFactoryTest {
         final Schema schema = Schema.fromJson(StreamUtil.schemas(AccumuloAddElementsFromHdfsJobFactoryTest.class));
         final AccumuloProperties properties = AccumuloProperties
                 .loadStoreProperties(StreamUtil.storeProps(AccumuloAddElementsFromHdfsJobFactoryTest.class));
-        store.initialise(schema, properties);
+        store.initialise("graphId", schema, properties);
         final JobConf localConf = createLocalConf();
         final FileSystem fs = FileSystem.getLocal(localConf);
         fs.mkdirs(new Path(outputDir));

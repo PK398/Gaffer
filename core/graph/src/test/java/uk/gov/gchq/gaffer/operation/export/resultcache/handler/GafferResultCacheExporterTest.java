@@ -64,10 +64,10 @@ public class GafferResultCacheExporterTest {
     private final List<?> results = Arrays.asList(1, "2", null);
     private final byte[][] serialisedResults = {serialise(1), serialise("2"), null};
     private final Graph resultCache = new Graph.Builder()
+            .graphId("resultCacheGraph")
             .addSchema(new Schema())
             .store(store)
             .build();
-
 
     @Test
     public void shouldAddResults() throws OperationException, SerialisationException {

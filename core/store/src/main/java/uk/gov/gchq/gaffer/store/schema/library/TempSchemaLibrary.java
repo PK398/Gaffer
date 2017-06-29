@@ -20,48 +20,32 @@ import uk.gov.gchq.gaffer.store.schema.Schema;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TempSchemaLibrary implements SchemaLibrary {
-    private static Map<String, Schema> schemas = new HashMap<>();
-    private static   Map<String, Schema> originalSchemas = new HashMap<>();
+public class TempSchemaLibrary extends SchemaLibrary {
+    private Map<String, Schema> schemas = new HashMap<>();
+    private Map<String, Schema> originalSchemas = new HashMap<>();
 
     @Override
     public void initialise(final Store store) {
     }
 
     @Override
-    public void add(final String graphId, final Schema schema, final Schema originalSchema) {
-        validateGraphId(graphId);
-        if (null != schemas.get(graphId) || null != originalSchemas.get(graphId)) {
-            throw new OverwritingSchemaException("GraphId already exists: " + graphId);
-        }
-        _add(graphId, schema, originalSchema);
-    }
-
-    @Override
-    public void addOrUpdate(final String graphId, final Schema schema, final Schema originalSchema) {
-        validateGraphId(graphId);
-        _add(graphId, schema, originalSchema);
-    }
-
-    @Override
-    public Schema get(final String graphId) {
-        validateGraphId(graphId);
-        return schemas.get(graphId);
-    }
-
-    @Override
-    public Schema getOriginal(final String graphId) {
-        validateGraphId(graphId);
-        return originalSchemas.get(graphId);
-    }
-
-    private void _add(final String graphId, final Schema schema, final Schema originalSchema) {
+    protected void _add(final String graphId, final Schema schema, final Schema originalSchema) {
         schemas.put(graphId, schema);
         originalSchemas.put(graphId, originalSchema);
     }
 
-    public static void clear() {
-        schemas.clear();
-        originalSchemas.clear();
+    @Override
+    protected void _addOrUpdate(final String graphId, final Schema schema, final Schema originalSchema) {
+        _add(graphId, schema, originalSchema);
+    }
+
+    @Override
+    protected Schema _get(final String graphId) {
+        return schemas.get(graphId);
+    }
+
+    @Override
+    protected Schema _getOriginal(final String graphId) {
+        return originalSchemas.get(graphId);
     }
 }

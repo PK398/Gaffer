@@ -15,47 +15,78 @@
  */
 package uk.gov.gchq.gaffer.store.schema.library;
 
+import uk.gov.gchq.gaffer.commonutil.JsonUtil;
 import uk.gov.gchq.gaffer.store.Store;
 import uk.gov.gchq.gaffer.store.schema.Schema;
 import java.util.regex.Pattern;
 
-public interface SchemaLibrary {
-    Pattern GRAPH_ID_ALLOWED_CHARACTERS = Pattern.compile("[a-zA-Z0-9\\-_].*");
+public abstract class SchemaLibrary {
+    protected static final Pattern GRAPH_ID_ALLOWED_CHARACTERS = Pattern.compile("[a-zA-Z0-9_].*");
 
-    void initialise(Store store);
+    public abstract void initialise(Store store);
 
-    void add(final String graphId, final Schema schema, final Schema originalSchema) throws OverwritingSchemaException;
+    public void add(final String graphId, final Schema schema, final Schema originalSchema) throws OverwritingSchemaException {
+        validateGraphId(graphId);
+        checkExisting(graphId, schema, originalSchema);
+        _add(graphId, schema, originalSchema);
+    }
 
-    void addOrUpdate(final String graphId, final Schema schema, final Schema originalSchema);
+    public void addOrUpdate(final String graphId, final Schema schema, final Schema originalSchema) {
+        validateGraphId(graphId);
+        _addOrUpdate(graphId, schema, originalSchema);
+    }
 
-    Schema get(final String graphId);
+    public Schema get(final String graphId) {
+        validateGraphId(graphId);
+        return _get(graphId);
+    }
 
-    Schema getOriginal(String graphId);
+    public Schema getOriginal(final String graphId) {
+        validateGraphId(graphId);
+        return _getOriginal(graphId);
+    }
 
-    default void validateGraphId(final String graphId) {
+    protected abstract void _add(final String graphId, final Schema schema, final Schema originalSchema) throws OverwritingSchemaException;
+
+    protected abstract void _addOrUpdate(final String graphId, final Schema schema, final Schema originalSchema);
+
+    protected abstract Schema _get(final String graphId);
+
+    protected abstract Schema _getOriginal(final String graphId);
+
+    protected void validateGraphId(final String graphId) {
         if (!GRAPH_ID_ALLOWED_CHARACTERS.matcher(graphId).matches()) {
             throw new IllegalArgumentException("graphId is invalid: " + graphId);
         }
     }
 
-    class OverwritingSchemaException extends  RuntimeException {
+    protected void checkExisting(final String graphId, final Schema schema, final Schema originalSchema) {
+        final Schema existingSchema = get(graphId);
+        if (null != existingSchema) {
+            if (!JsonUtil.equals(existingSchema.toCompactJson(), schema.toCompactJson())) {
+                throw new OverwritingSchemaException("GraphId " + graphId + " already exists with a different schema: " + graphId);
+            }
+        }
+        final Schema existingOriginalSchema = getOriginal(graphId);
+        if (null != existingOriginalSchema) {
+            if (!JsonUtil.equals(existingOriginalSchema.toCompactJson(), originalSchema.toCompactJson())) {
+                throw new OverwritingSchemaException("GraphId " + graphId + " already exists with a different original schema: " + graphId);
+            }
+        }
+    }
+
+    public static class OverwritingSchemaException extends IllegalArgumentException {
+        private static final long serialVersionUID = -1995995721072170558L;
+
         public OverwritingSchemaException() {
         }
 
-        public OverwritingSchemaException(String message) {
+        public OverwritingSchemaException(final String message) {
             super(message);
         }
 
-        public OverwritingSchemaException(String message, Throwable cause) {
+        public OverwritingSchemaException(final String message, final Throwable cause) {
             super(message, cause);
-        }
-
-        public OverwritingSchemaException(Throwable cause) {
-            super(cause);
-        }
-
-        public OverwritingSchemaException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-            super(message, cause, enableSuppression, writableStackTrace);
         }
     }
 }

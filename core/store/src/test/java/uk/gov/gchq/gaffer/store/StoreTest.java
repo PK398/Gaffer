@@ -216,9 +216,9 @@ public class StoreTest {
         assertTrue(store.getOperationHandlerExposed(GetSetExport.class) instanceof GetSetExportHandler);
 
         assertEquals(1, store.getCreateOperationHandlersCallCount());
-        assertSame(schema, store.getSchema());
+        assertSame(schema, store.getOriginalSchema());
         assertSame(properties, store.getProperties());
-        verify(schemaOptimiser).optimise(schema, true);
+        verify(schemaOptimiser).optimise(store.getSchema(), true);
     }
 
     @Test

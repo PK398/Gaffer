@@ -16,18 +16,12 @@
 
 package uk.gov.gchq.gaffer.graph;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.junit.rules.TemporaryFolder;
+import uk.gov.gchq.gaffer.commonutil.CommonTestConstants;
+import uk.gov.gchq.gaffer.commonutil.JsonAssert;
 import uk.gov.gchq.gaffer.commonutil.TestGroups;
 import uk.gov.gchq.gaffer.commonutil.TestPropertyNames;
 import uk.gov.gchq.gaffer.commonutil.TestTypes;
@@ -49,34 +43,27 @@ import uk.gov.gchq.gaffer.store.operation.handler.OperationHandler;
 import uk.gov.gchq.gaffer.store.operation.handler.OutputOperationHandler;
 import uk.gov.gchq.gaffer.store.schema.Schema;
 import uk.gov.gchq.gaffer.store.schema.SchemaEdgeDefinition;
-import uk.gov.gchq.gaffer.store.schema.SchemaElementDefinition;
 import uk.gov.gchq.gaffer.store.schema.SchemaEntityDefinition;
 import uk.gov.gchq.gaffer.store.schema.TypeDefinition;
+import uk.gov.gchq.gaffer.store.schema.library.FileSchemaLibrary;
 import uk.gov.gchq.gaffer.store.schema.library.SchemaLibrary;
-import uk.gov.gchq.gaffer.store.schema.library.TempSchemaLibrary;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-@RunWith(MockitoJUnitRunner.class)
 public class GraphFileSchemaTest {
 
     public static final String GRAPH_ID = "graphId";
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder(CommonTestConstants.TMP_DIRECTORY);
+
     private StoreProperties storeProperties;
-    private Schema schemaModule1;
-    private Schema schemaModule2;
-    private Schema schemaModule3;
-    private Schema schemaModule4;
     private Graph graph;
-    private HashSet<Schema> inputSchema = Sets.newHashSet();
+    private Schema inputSchema;
 
 
     @Before
     public void setUp() throws Exception {
-
-        schemaModule1 = new Schema.Builder()
+        final Schema schemaModule1 = new Schema.Builder()
                 .type(TestTypes.PROP_STRING, new TypeDefinition.Builder()
                         .clazz(String.class)
                         .build())
@@ -86,7 +73,7 @@ public class GraphFileSchemaTest {
                         .build())
                 .build();
 
-        schemaModule2 = new Schema.Builder()
+        final Schema schemaModule2 = new Schema.Builder()
                 .type(TestTypes.PROP_INTEGER, new TypeDefinition.Builder()
                         .clazz(Integer.class)
                         .build())
@@ -96,14 +83,14 @@ public class GraphFileSchemaTest {
                         .build())
                 .build();
 
-        schemaModule3 = new Schema.Builder()
+        final Schema schemaModule3 = new Schema.Builder()
                 .entity(TestGroups.ENTITY, new SchemaEntityDefinition.Builder()
                         .property(TestPropertyNames.PROP_1, TestTypes.PROP_STRING)
                         .aggregate(false)
                         .build())
                 .build();
 
-        schemaModule4 = new Schema.Builder()
+        final Schema schemaModule4 = new Schema.Builder()
                 .entity(TestGroups.ENTITY_2, new SchemaEntityDefinition.Builder()
                         .property(TestPropertyNames.PROP_2, TestTypes.PROP_INTEGER)
                         .aggregate(false)
@@ -111,31 +98,25 @@ public class GraphFileSchemaTest {
                 .build();
 
 
-        inputSchema.add(schemaModule1);
-        inputSchema.add(schemaModule2);
-        inputSchema.add(schemaModule3);
-        inputSchema.add(schemaModule4);
-
         storeProperties = new StoreProperties();
         storeProperties.setStoreClass(StoreImpl.class.getName());
+        storeProperties.setSchemaLibraryClass(FileSchemaLibrary.class);
+        storeProperties.set(FileSchemaLibrary.LIBRARY_PATH_KEY, tempFolder.newFolder().getAbsolutePath());
 
         graph = new Graph.Builder()
                 .graphId(GRAPH_ID)
                 .storeProperties(storeProperties)
-                .addSchemas(inputSchema.toArray(new Schema[inputSchema.size()]))
+                .addSchema(schemaModule1)
+                .addSchema(schemaModule2)
+                .addSchema(schemaModule3)
+                .addSchema(schemaModule4)
                 .build();
 
+        inputSchema = graph.getSchema();
     }
-
-    @After
-    public void tearDown() throws Exception {
-        TempSchemaLibrary.clear();
-        inputSchema.clear();
-    }
-
 
     @Test
-    public void shouldNotThrowExceptionsForSecondGraph() throws Exception {
+    public void shouldNotThrowExceptionWhenRetrievingAnExistingSchema() throws Exception {
         // When
         new Graph.Builder()
                 .graphId(GRAPH_ID)
@@ -153,7 +134,7 @@ public class GraphFileSchemaTest {
         new Graph.Builder()
                 .graphId(GRAPH_ID)
                 .storeProperties(storeProperties)
-                .addSchemas(inputSchema.toArray(new Schema[inputSchema.size()]))
+                .addSchemas(inputSchema)
                 .build();
     }
 
@@ -164,92 +145,23 @@ public class GraphFileSchemaTest {
         new Graph.Builder()
                 .graphId(GRAPH_ID + 1)
                 .storeProperties(storeProperties)
-                .addSchemas(inputSchema.toArray(new Schema[inputSchema.size()]))
+                .addSchemas(inputSchema)
                 .build();
     }
 
     @Test
-    public void shouldHaveInputTypes() throws Exception {
-        // When
-        Graph graph = new Graph.Builder()
+    public void shouldReturnCorrectSchema() throws Exception {
+        // Given
+        final Graph graph = new Graph.Builder()
                 .graphId(GRAPH_ID)
                 .storeProperties(storeProperties)
                 .build();
 
-
-        Schema graphSchema = graph.getSchema();
-
-        Map<String, TypeDefinition> returnedTypes = graphSchema.getTypes();
-
-        HashMap<String, TypeDefinition> inputSchemaTypes = Maps.newHashMap();
-        inputSchema.forEach(schema ->  inputSchemaTypes.putAll(schema.getTypes()));
-
-        inputSchemaTypes.keySet().forEach(s -> assertTrue(returnedTypes.containsKey(s)));
-
-        inputSchemaTypes.entrySet().forEach(kv -> {
-            TypeDefinition inputTypeDeg = kv.getValue();
-            TypeDefinition returnedTypeDef = returnedTypes.get(kv.getKey());
-            assertEquals(returnedTypeDef.getClassString(), inputTypeDeg.getClassString());
-            assertEquals(returnedTypeDef.getAggregateFunction(), inputTypeDeg.getAggregateFunction());
-            assertEquals(returnedTypeDef.getDescription(), inputTypeDeg.getDescription());
-            assertTrue(String.format("Serialiser should match or be null. expected: %s but found: %s", returnedTypeDef.getSerialiser(), inputTypeDeg.getSerialiser()),returnedTypeDef.getSerialiser().equals( inputTypeDeg.getSerialiser())|| inputTypeDeg.getSerialiser()==null);
-            assertEquals(returnedTypeDef.getValidateFunctions(), inputTypeDeg.getValidateFunctions());
-        });
-
-    }
-
-
-    @Test
-    public void shouldHaveInputGroups() throws Exception {
         // When
-        Graph graph = new Graph.Builder()
-                .graphId(GRAPH_ID)
-                .storeProperties(storeProperties)
-                .build();
+        final Schema graphSchema = graph.getSchema();
 
-
-        Schema graphSchema = graph.getSchema();
-
-        Set<String> returnedGroups = graphSchema.getGroups();
-
-
-        HashSet<String> inputSchemaGroups  = Sets.newHashSet();
-        inputSchema.forEach( schema -> inputSchemaGroups.addAll(schema.getGroups()));
-
-        inputSchemaGroups.forEach(s -> assertTrue(returnedGroups.contains(s)));
-    }
-
-
-    @Test
-    public void shouldHaveInputElementsSchema() throws Exception {
-        // When
-        Graph graph = new Graph.Builder()
-                .graphId(GRAPH_ID)
-                .storeProperties(storeProperties)
-                .build();
-
-        Schema graphSchema = graph.getSchema();
-        graphSchema.getGroups().forEach(s -> {
-
-            List<SchemaElementDefinition> inputSchemaElementDefinitions = Lists.newArrayList();
-            inputSchema.forEach(schema -> {
-                SchemaElementDefinition element = schema.getElement(s);
-                if(element!=null){inputSchemaElementDefinitions.add(element);}
-            });
-
-            assertEquals(String.format("Test is designed to handle 1 response, duplicates persist depending on order added to graph.\nGroup:%s", s),1,inputSchemaElementDefinitions.size());
-
-            SchemaElementDefinition inputSchemaElementDefinition = inputSchemaElementDefinitions.get(0);
-            SchemaElementDefinition graphSchemaElement = graphSchema.getElement(s);
-            assertEquals(inputSchemaElementDefinition,graphSchemaElement);
-
-        } ) ;
-    }
-
-
-    @Test
-    public void shouldRunForAllSchemaLibrary() throws Exception {
-        fail("Not Yet implemented");
+        // Then
+        JsonAssert.assertEquals(inputSchema.toJson(false), graphSchema.toJson(false));
     }
 
     static class StoreImpl extends Store {

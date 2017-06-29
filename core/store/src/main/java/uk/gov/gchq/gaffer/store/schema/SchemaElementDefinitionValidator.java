@@ -214,9 +214,4 @@ public class SchemaElementDefinitionValidator {
         }
         return clazz;
     }
-
-    @Override
-    public boolean equals(Object obj) {
-        return obj!=null && this.getClass().equals(obj.getClass());
-    }
 }

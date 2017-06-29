@@ -102,8 +102,6 @@ import uk.gov.gchq.gaffer.store.schema.ViewValidator;
 import uk.gov.gchq.gaffer.store.schema.library.SchemaLibrary;
 import uk.gov.gchq.gaffer.user.User;
 import uk.gov.gchq.koryphe.ValidationResult;
-
-import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -154,37 +152,29 @@ public abstract class Store {
     }
 
     public void initialise(final String graphId, final Schema schema, final StoreProperties properties) throws StoreException {
+        this.properties = properties;
+        this.schemaLibrary = createSchemaLibrary();
+        if (null == graphId) {
+            throw new IllegalArgumentException("graphId is required");
+        }
         this.graphId = graphId;
-        this.originalSchema = schema;
-        this.schema = null != schema ? schema.clone() : schema;
-        this.properties = properties;
-        this.schemaLibrary = createSchemaLibrary();
+
+        if (null == schema) {
+            fetchSchema(graphId);
+        } else {
+            storeSchema(graphId, schema);
+        }
+
         startCacheServiceLoader(properties);
         this.jobTracker = createJobTracker(properties);
 
-        optimiseSchema();
         validateSchemas();
         addOpHandlers();
         addExecutorService();
-        addSchemaToLibrary(graphId);
-    }
 
-
-    public void initialise(final String graphId, final StoreProperties properties) throws StoreException {
-        this.properties = properties;
-        startCacheServiceLoader(properties);
-        this.jobTracker = createJobTracker(properties);
-        this.schemaLibrary = createSchemaLibrary();
-
-        this.schema = schemaLibrary.get(graphId);
-        if(this.schema==null){throw new InvalidParameterException(String.format("The schema was not found for graphId: %s", graphId));}
-        this.originalSchema = schemaLibrary.getOriginal(graphId);
-
-        // don't optimise the schema here just use the previously stored schema
-        validateSchemas();
-        
-        addOpHandlers();
-        addExecutorService();
+        if (schema.getGroups().isEmpty()) {
+            LOGGER.warn("no groups");
+        }
     }
 
     /**
@@ -445,9 +435,31 @@ public abstract class Store {
         }
     }
 
+    @SuppressFBWarnings(value = "RCN_REDUNDANT_COMPARISON_OF_NULL_AND_NONNULL_VALUE", justification = "schema.clone() could return a null if schema is extended and clone is not implemented correctly")
+    protected void storeSchema(final String graphId, final Schema schema) {
+        this.originalSchema = schema;
+        final Schema clonedSchema = null != schema ? schema.clone() : null;
+        this.schema = null != clonedSchema ? clonedSchema : schema;
+        optimiseSchema();
+        addSchemaToLibrary(graphId);
+    }
+
+
+    protected void fetchSchema(final String graphId) {
+        this.schema = schemaLibrary.get(graphId);
+        if (this.schema == null) {
+            throw new IllegalArgumentException(String.format("The schema was not found for graphId: %s", graphId));
+        }
+        this.originalSchema = schemaLibrary.getOriginal(graphId);
+    }
+
     protected SchemaLibrary createSchemaLibrary() throws StoreException {
         final SchemaLibrary newSchemaLibrary;
-        final String schemaLibraryClassName = properties.getSchemaLibraryClass();
+        String schemaLibraryClassName = properties.getSchemaLibraryClass();
+        if (null == schemaLibraryClassName) {
+            schemaLibraryClassName = StoreProperties.SCHEMA_LIBRARY_CLASS_DEFAULT;
+        }
+
         try {
             newSchemaLibrary = Class.forName(schemaLibraryClassName).asSubclass(SchemaLibrary.class).newInstance();
         } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {

@@ -58,7 +58,8 @@ import uk.gov.gchq.gaffer.operation.impl.generate.GenerateElements;
 import uk.gov.gchq.gaffer.operation.impl.generate.GenerateObjects;
 import uk.gov.gchq.gaffer.operation.impl.get.GetElements;
 import uk.gov.gchq.gaffer.serialisation.Serialiser;
-import uk.gov.gchq.gaffer.serialisation.ToBytesSerialiser;
+import uk.gov.gchq.gaffer.serialisation.implementation.JavaSerialiser;
+import uk.gov.gchq.gaffer.serialisation.implementation.StringSerialiser;
 import uk.gov.gchq.gaffer.store.StoreException;
 import uk.gov.gchq.gaffer.store.StoreTrait;
 import uk.gov.gchq.gaffer.store.operation.handler.OperationHandler;
@@ -75,10 +76,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static uk.gov.gchq.gaffer.store.StoreTrait.INGEST_AGGREGATION;
 import static uk.gov.gchq.gaffer.store.StoreTrait.ORDERED;
 import static uk.gov.gchq.gaffer.store.StoreTrait.POST_AGGREGATION_FILTERING;
@@ -90,10 +87,11 @@ import static uk.gov.gchq.gaffer.store.StoreTrait.TRANSFORMATION;
 import static uk.gov.gchq.gaffer.store.StoreTrait.VISIBILITY;
 
 public class AccumuloStoreTest {
-
+    private static final String BYTE_ENTITY_GRAPH = "byteEntityGraph";
+    private static final String GAFFER_1_GRAPH = "gaffer1Graph";
     private static SingleUseMockAccumuloStore byteEntityStore;
     private static SingleUseMockAccumuloStore gaffer1KeyStore;
-    private static final Schema schema = Schema.fromJson(StreamUtil.schemas(AccumuloStoreTest.class));
+    private static final Schema SCHEMA = Schema.fromJson(StreamUtil.schemas(AccumuloStoreTest.class));
     private static final AccumuloProperties PROPERTIES = AccumuloProperties.loadStoreProperties(StreamUtil.storeProps(AccumuloStoreTest.class));
     private static final AccumuloProperties CLASSIC_PROPERTIES = AccumuloProperties.loadStoreProperties(StreamUtil.openStream(AccumuloStoreTest.class, "/accumuloStoreClassicKeys.properties"));
 
@@ -101,21 +99,13 @@ public class AccumuloStoreTest {
     public static void setup() throws StoreException, AccumuloException, AccumuloSecurityException, IOException {
         byteEntityStore = new SingleUseMockAccumuloStore();
         gaffer1KeyStore = new SingleUseMockAccumuloStore();
-        byteEntityStore.initialise(schema, PROPERTIES);
-        gaffer1KeyStore.initialise(schema, CLASSIC_PROPERTIES);
     }
 
     @Before
     public void beforeMethod() throws StoreException, IOException {
-        if (!byteEntityStore.getConnection().tableOperations().exists(PROPERTIES.getTable())) {
-            byteEntityStore.initialise(schema, PROPERTIES);
-        }
-
-        if (!gaffer1KeyStore.getConnection().tableOperations().exists(PROPERTIES.getTable())) {
-            gaffer1KeyStore.initialise(schema, PROPERTIES);
-        }
+        byteEntityStore.initialise(BYTE_ENTITY_GRAPH, SCHEMA, PROPERTIES);
+        gaffer1KeyStore.initialise(GAFFER_1_GRAPH, SCHEMA, CLASSIC_PROPERTIES);
     }
-
 
     @AfterClass
     public static void tearDown() {
@@ -127,16 +117,16 @@ public class AccumuloStoreTest {
     public void shouldNotCreateTableWhenInitialisedWithGeneralInitialiseMethod() throws StoreException, IOException, AccumuloSecurityException, AccumuloException, TableNotFoundException {
         Connector connector = byteEntityStore.getConnection();
 
-        connector.tableOperations().delete(PROPERTIES.getTable());
-        assertFalse(connector.tableOperations().exists(PROPERTIES.getTable()));
+        connector.tableOperations().delete(byteEntityStore.getTableName());
+        assertFalse(connector.tableOperations().exists(byteEntityStore.getTableName()));
 
-        byteEntityStore.preInitialise(schema, PROPERTIES);
+        byteEntityStore.preInitialise(BYTE_ENTITY_GRAPH, SCHEMA, PROPERTIES);
         connector = byteEntityStore.getConnection();
-        assertFalse(connector.tableOperations().exists(PROPERTIES.getTable()));
+        assertFalse(connector.tableOperations().exists(byteEntityStore.getTableName()));
 
-        byteEntityStore.initialise(schema, PROPERTIES);
+        byteEntityStore.initialise(GAFFER_1_GRAPH, SCHEMA, PROPERTIES);
         connector = byteEntityStore.getConnection();
-        assertTrue(connector.tableOperations().exists(PROPERTIES.getTable()));
+        assertTrue(connector.tableOperations().exists(byteEntityStore.getTableName()));
     }
 
     @Test
@@ -146,13 +136,12 @@ public class AccumuloStoreTest {
     }
 
     @Test
-    public void shouldAllowRangeScanOperationsWhenVertexSerialiserDoesNotPreserveObjectOrdering() throws StoreException {
+    public void shouldAllowRangeScanOperationsWhenVertexSerialiserDoesPreserveObjectOrdering() throws StoreException {
         // Given
         final SingleUseMockAccumuloStore store = new SingleUseMockAccumuloStore();
-        final Serialiser serialiser = mock(ToBytesSerialiser.class);
-        given(serialiser.preservesObjectOrdering()).willReturn(true);
-
+        final Serialiser serialiser = new StringSerialiser();
         store.initialise(
+                BYTE_ENTITY_GRAPH,
                 new Schema.Builder()
                         .vertexSerialiser(serialiser)
                         .build(),
@@ -165,17 +154,15 @@ public class AccumuloStoreTest {
         // Then
         assertTrue(isGetElementsInRangesSupported);
         assertTrue(isSummariseGroupOverRangesSupported);
-        verify(serialiser, atLeastOnce()).preservesObjectOrdering();
     }
 
     @Test
     public void shouldNotAllowRangeScanOperationsWhenVertexSerialiserDoesNotPreserveObjectOrdering() throws StoreException {
         // Given
         final SingleUseMockAccumuloStore store = new SingleUseMockAccumuloStore();
-        final Serialiser serialiser = mock(ToBytesSerialiser.class);
-        given(serialiser.preservesObjectOrdering()).willReturn(false);
-
+        final Serialiser serialiser = new JavaSerialiser();
         store.initialise(
+                BYTE_ENTITY_GRAPH,
                 new Schema.Builder()
                         .vertexSerialiser(serialiser)
                         .build(),
@@ -188,7 +175,6 @@ public class AccumuloStoreTest {
         // Then
         assertFalse(isGetElementsInRangesSupported);
         assertFalse(isSummariseGroupOverRangesSupported);
-        verify(serialiser, atLeastOnce()).preservesObjectOrdering();
     }
 
     @Test

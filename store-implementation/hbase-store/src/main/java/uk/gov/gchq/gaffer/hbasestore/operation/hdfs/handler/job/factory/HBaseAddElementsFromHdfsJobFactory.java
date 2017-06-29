@@ -70,7 +70,7 @@ public class HBaseAddElementsFromHdfsJobFactory extends
             HFileOutputFormat2.configureIncrementalLoad(
                     job,
                     store.getTable(),
-                    store.getConnection().getRegionLocator(store.getProperties().getTable())
+                    store.getConnection().getRegionLocator(store.getTableName())
             );
         } catch (final StoreException e) {
             throw new RuntimeException(e);

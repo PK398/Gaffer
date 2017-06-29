@@ -24,12 +24,12 @@ import uk.gov.gchq.gaffer.data.element.Edge;
 import uk.gov.gchq.gaffer.data.element.Element;
 import uk.gov.gchq.gaffer.data.element.Entity;
 import uk.gov.gchq.gaffer.data.element.function.ElementFilter;
+import uk.gov.gchq.gaffer.data.element.id.DirectedType;
 import uk.gov.gchq.gaffer.data.elementdefinition.view.View;
 import uk.gov.gchq.gaffer.data.elementdefinition.view.ViewElementDefinition;
 import uk.gov.gchq.gaffer.graph.Graph;
 import uk.gov.gchq.gaffer.mapstore.MapStoreProperties;
 import uk.gov.gchq.gaffer.operation.OperationException;
-import uk.gov.gchq.gaffer.data.element.id.DirectedType;
 import uk.gov.gchq.gaffer.operation.impl.add.AddElements;
 import uk.gov.gchq.gaffer.operation.impl.get.GetAllElements;
 import uk.gov.gchq.gaffer.store.StoreException;
@@ -340,6 +340,7 @@ public class GetAllElementsHandlerTest {
     public static Graph getGraph() {
         final MapStoreProperties storeProperties = new MapStoreProperties();
         return new Graph.Builder()
+                .graphId("graph1")
                 .addSchema(getSchema())
                 .storeProperties(storeProperties)
                 .build();
@@ -348,6 +349,7 @@ public class GetAllElementsHandlerTest {
     static Graph getGraphNoAggregation() {
         final MapStoreProperties storeProperties = new MapStoreProperties();
         return new Graph.Builder()
+                .graphId("graph1")
                 .addSchema(getSchemaNoAggregation())
                 .storeProperties(storeProperties)
                 .build();
@@ -357,6 +359,7 @@ public class GetAllElementsHandlerTest {
         final MapStoreProperties storeProperties = new MapStoreProperties();
         storeProperties.setCreateIndex("false");
         return new Graph.Builder()
+                .graphId("graphWithNoIndices")
                 .addSchema(getSchema())
                 .storeProperties(storeProperties)
                 .build();

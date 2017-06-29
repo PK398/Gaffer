@@ -20,58 +20,56 @@ import uk.gov.gchq.gaffer.store.Store;
 import uk.gov.gchq.gaffer.store.schema.Schema;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.regex.Pattern;
 
-public class FileSchemaLibrary implements SchemaLibrary {
+public class FileSchemaLibrary extends SchemaLibrary {
     public static final String LIBRARY_PATH_KEY = "gaffer.store.schema.library.path";
     public static final String LIBRARY_PATH_DEFAULT = "schemaLibrary";
+    private static final Pattern PATH_ALLOWED_CHARACTERS = Pattern.compile("[a-zA-Z0-9_/\\\\].*");
 
     private String path;
 
     @Override
     public void initialise(final Store store) {
         this.path = store.getProperties().get(LIBRARY_PATH_KEY, LIBRARY_PATH_DEFAULT);
-        if (!GRAPH_ID_ALLOWED_CHARACTERS.matcher(path).matches()) {
-            throw new IllegalArgumentException("path is invalid: " + path);
+        if (!PATH_ALLOWED_CHARACTERS.matcher(path).matches()) {
+            throw new IllegalArgumentException("path is invalid: " + path + " it must match the regex: " + PATH_ALLOWED_CHARACTERS);
         }
     }
 
     @Override
-    public void add(final String graphId, final Schema schema, final Schema originalSchema) {
-        validateGraphId(graphId);
+    protected void _add(final String graphId, final Schema schema, final Schema originalSchema) {
+        addSchema(schema, getSchemaPath(graphId));
+        addSchema(originalSchema, getOriginalSchemaPath(graphId));
+    }
+
+    @Override
+    protected void _addOrUpdate(final String graphId, final Schema schema, final Schema originalSchema) {
+        FileUtils.deleteQuietly(new File(getSchemaPath(graphId)));
+        FileUtils.deleteQuietly(new File(getOriginalSchemaPath(graphId)));
         _add(graphId, schema, originalSchema);
     }
 
     @Override
-    public void addOrUpdate(final String graphId, final Schema schema, final Schema originalSchema) {
-        validateGraphId(graphId);
-        FileUtils.deleteQuietly(new File(getSchemaPath(graphId)));
-        FileUtils.deleteQuietly(new File(getOriginalSchemaPath(graphId)));
-        add(graphId, schema, originalSchema);
+    protected Schema _get(final String graphId) {
+        final Path path = Paths.get(getSchemaPath(graphId));
+        return path.toFile().exists() ? Schema.fromJson(path) : null;
     }
 
     @Override
-    public Schema get(final String graphId) {
-        validateGraphId(graphId);
-        return Schema.fromJson(Paths.get(getSchemaPath(graphId)));
-    }
-
-    @Override
-    public Schema getOriginal(final String graphId) {
-        validateGraphId(graphId);
-        return Schema.fromJson(Paths.get(getOriginalSchemaPath(graphId)));
-    }
-
-    private void _add(final String graphId, final Schema schema, final Schema originalSchema) {
-        addSchema(schema, getSchemaPath(graphId));
-        addSchema(originalSchema, getOriginalSchemaPath(graphId));
+    protected Schema _getOriginal(final String graphId) {
+        final Path path = Paths.get(getOriginalSchemaPath(graphId));
+        return path.toFile().exists() ? Schema.fromJson(path) : null;
     }
 
     private void addSchema(final Schema schema, final String schemaFile) {
         try {
             File file = new File(schemaFile);
-            if ( !file.exists()) { FileUtils.writeByteArrayToFile(file, schema.toJson(false));}
-             else {
+            if (!file.exists()) {
+                FileUtils.writeByteArrayToFile(file, schema.toJson(false));
+            } else {
                 throw new OverwritingSchemaException(String.format("Attempting to overwrite a schema file for: %s", schemaFile));
             }
         } catch (final IOException e) {

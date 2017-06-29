@@ -20,13 +20,14 @@ import com.google.common.io.Files;
 import com.google.common.io.InputSupplier;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
-import uk.gov.gchq.gaffer.commonutil.JsonUtil;
+import uk.gov.gchq.gaffer.commonutil.CommonTestConstants;
+import uk.gov.gchq.gaffer.commonutil.JsonAssert;
 import uk.gov.gchq.gaffer.commonutil.StreamUtil;
 import uk.gov.gchq.gaffer.commonutil.TestGroups;
 import uk.gov.gchq.gaffer.commonutil.TestPropertyNames;
@@ -60,6 +61,7 @@ import uk.gov.gchq.gaffer.store.schema.Schema;
 import uk.gov.gchq.gaffer.store.schema.SchemaEdgeDefinition;
 import uk.gov.gchq.gaffer.store.schema.SchemaEntityDefinition;
 import uk.gov.gchq.gaffer.store.schema.TypeDefinition;
+import uk.gov.gchq.gaffer.store.schema.library.FileSchemaLibrary;
 import uk.gov.gchq.gaffer.user.User;
 import uk.gov.gchq.koryphe.impl.binaryoperator.StringConcat;
 import uk.gov.gchq.koryphe.impl.binaryoperator.Sum;
@@ -92,10 +94,11 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-@RunWith(MockitoJUnitRunner.class)
 public class GraphTest {
+    private static final String GRAPH_ID = "graphId";
 
-    public static final String GRAPH_ID = "graphId";
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder(CommonTestConstants.TMP_DIRECTORY);
 
     @Before
     public void before() throws Exception {
@@ -183,7 +186,7 @@ public class GraphTest {
         }
 
         // Then
-        JsonUtil.assertEquals(expectedSchema.toJson(true), graph.getSchema().toJson(true));
+        JsonAssert.assertEquals(expectedSchema.toJson(true), graph.getSchema().toJson(true));
     }
 
     @Test
@@ -214,7 +217,7 @@ public class GraphTest {
         }
 
         // Then
-        JsonUtil.assertEquals(expectedSchema.toJson(true), graph.getSchema().toJson(true));
+        JsonAssert.assertEquals(expectedSchema.toJson(true), graph.getSchema().toJson(true));
     }
 
     private URI getResourceUri(String resource) throws URISyntaxException {
@@ -759,12 +762,14 @@ public class GraphTest {
         try {
             new Graph.Builder()
                     .graphId(GRAPH_ID)
-                    .addSchemas(StreamUtil.openStreams(GraphTest.class, "directory_that_doesnt_exist"))
+                    .addSchema(new Schema.Builder()
+                            .edge("group")
+                            .entity("group")
+                            .build())
                     .storeProperties(storeProperties)
                     .build();
-        } catch (SchemaException e) {
-            assertEquals("Schema is not valid. Validation errors: \n" +
-                    "Schema is missing", e.getMessage());
+        } catch (final SchemaException e) {
+            assertTrue(e.getMessage().contains("Schema is not valid"));
         }
     }
 
@@ -781,9 +786,8 @@ public class GraphTest {
                     .graphId(GRAPH_ID)
                     .storeProperties(storeProperties)
                     .build();
-        } catch (final SchemaException e) {
-            assertEquals("Schema is not valid. Validation errors: \n" +
-                    "Schema is missing", e.getMessage());
+        } catch (final IllegalArgumentException e) {
+            assertEquals("The schema was not found for graphId: " + GRAPH_ID, e.getMessage());
         }
     }
 
@@ -861,10 +865,13 @@ public class GraphTest {
     }
 
     @Test
-    public void name() throws Exception {
+    public void shouldBuildGraphUsingGraphIdAndLookupSchema() throws Exception {
         // Given
         final StoreProperties storeProperties = new StoreProperties();
         storeProperties.setStoreClass(StoreImpl.class.getName());
+        storeProperties.setStoreClass(GraphFileSchemaTest.StoreImpl.class.getName());
+        storeProperties.setSchemaLibraryClass(FileSchemaLibrary.class);
+        storeProperties.set(FileSchemaLibrary.LIBRARY_PATH_KEY, tempFolder.newFolder().getAbsolutePath());
 
         final Schema schemaModule1 = new Schema.Builder()
                 .type(TestTypes.PROP_STRING, new TypeDefinition.Builder()
@@ -911,14 +918,12 @@ public class GraphTest {
                 .addSchema(schemaModule4)
                 .build();
 
-
-        new Graph.Builder()
+        final Graph graph2 = new Graph.Builder()
                 .graphId(GRAPH_ID)
                 .storeProperties(storeProperties)
                 .build();
 
         // Then
-        final Schema schema = graph.getSchema();
-        schema.getEntity(TestGroups.ENTITY);
+        JsonAssert.assertEquals(graph.getSchema().toJson(false), graph2.getSchema().toJson(false));
     }
 }

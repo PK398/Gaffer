@@ -15,10 +15,6 @@
  */
 package uk.gov.gchq.gaffer.sparkaccumulo.operation.handler.scalardd;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
-
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.SparkConf;
@@ -45,6 +41,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+
 public class GetRDDOfElementsHandlerTest {
 
     private static final String ENTITY_GROUP = "BasicEntity";
@@ -53,6 +53,7 @@ public class GetRDDOfElementsHandlerTest {
     @Test
     public void checkGetCorrectElementsInRDDForEntityId() throws OperationException, IOException {
         final Graph graph1 = new Graph.Builder()
+                .graphId("graphId")
                 .addSchema(getClass().getResourceAsStream("/schema/dataSchema.json"))
                 .addSchema(getClass().getResourceAsStream("/schema/dataTypes.json"))
                 .addSchema(getClass().getResourceAsStream("/schema/storeTypes.json"))
@@ -225,6 +226,7 @@ public class GetRDDOfElementsHandlerTest {
     @Test
     public void checkGetCorrectElementsInRDDForEdgeId() throws OperationException, IOException {
         final Graph graph1 = new Graph.Builder()
+                .graphId("graphId")
                 .addSchema(getClass().getResourceAsStream("/schema/dataSchema.json"))
                 .addSchema(getClass().getResourceAsStream("/schema/dataTypes.json"))
                 .addSchema(getClass().getResourceAsStream("/schema/storeTypes.json"))
@@ -381,6 +383,7 @@ public class GetRDDOfElementsHandlerTest {
     @Test
     public void testNoSparkContext() throws OperationException {
         final Graph graph1 = new Graph.Builder()
+                .graphId("graphId")
                 .addSchema(getClass().getResourceAsStream("/schema/dataSchema.json"))
                 .addSchema(getClass().getResourceAsStream("/schema/dataTypes.json"))
                 .addSchema(getClass().getResourceAsStream("/schema/storeTypes.json"))

@@ -76,22 +76,18 @@ public final class Graph {
      */
     private List<GraphHook> graphHooks;
 
-    private Schema schema;
-
     /**
      * Constructs a <code>Graph</code> with the given {@link uk.gov.gchq.gaffer.store.Store} and
      * {@link uk.gov.gchq.gaffer.data.elementdefinition.view.View}.
      *
      * @param store      a {@link Store} used to store the elements and handle operations.
-     * @param schema     a {@link Schema} that defines the graph. Should be the copy of the schema that the store is initialised with.
      * @param view       a {@link View} defining the view of the data for the graph.
      * @param graphHooks a list of {@link GraphHook}s
      */
-    private Graph(final Store store, final Schema schema, final View view, final List<GraphHook> graphHooks) {
+    private Graph(final Store store, final View view, final List<GraphHook> graphHooks) {
         this.store = store;
         this.view = view;
         this.graphHooks = graphHooks;
-        this.schema = schema;
     }
 
     /**
@@ -249,7 +245,7 @@ public final class Graph {
      * @return the schema.
      */
     public Schema getSchema() {
-        return schema;
+        return store.getOriginalSchema();
     }
 
     /**
@@ -267,6 +263,13 @@ public final class Graph {
      */
     public Set<StoreTrait> getStoreTraits() {
         return store.getTraits();
+    }
+
+    /**
+     * @return the graphId for this Graph.
+     */
+    public String getGraphId() {
+        return store.getGraphId();
     }
 
     /**
@@ -461,15 +464,11 @@ public final class Graph {
         }
 
         public Graph build() {
-            if (null == graphId && (null == store || null == store.getGraphId())) {
-                throw new IllegalArgumentException("graphId is required");
-            }
-
             updateSchema();
             updateStore();
             updateView();
 
-            return new Graph(store, schema, view, graphHooks);
+            return new Graph(store, view, graphHooks);
         }
 
         private void updateSchema() {
@@ -488,27 +487,24 @@ public final class Graph {
 
         private void updateStore() {
             if (null == store) {
-                store = createStore(properties, cloneSchema(schema));
-            } else if (null != properties || null != schema) {
-                try {
-                    if (null == properties) {
-                        store.initialise(graphId, schema, store.getProperties());
-                    } else if (null == schema) {
-                        store.initialise(graphId, properties);
-                    } else {
-                        store.initialise(graphId, schema, properties);
-                    }
-                } catch (final StoreException e) {
-                    throw new IllegalArgumentException("Unable to initialise the store with the given schema and properties", e);
-                }
+                store = createStore(properties, schema);
+                graphId = store.getGraphId();
             } else {
-                schema = store.getSchema();
-                store.optimiseSchema();
-                store.validateSchemas();
-            }
+                if (null == graphId) {
+                    graphId = store.getGraphId();
+                }
+                if (null == schema) {
+                    schema = store.getOriginalSchema();
+                }
+                if (null == properties) {
+                    properties = store.getProperties();
+                }
 
-            if (null == schema) {
-                schema = store.getSchema();
+                try {
+                    store.initialise(graphId, schema, properties);
+                } catch (final StoreException e) {
+                    throw new IllegalArgumentException("Unable to initialise the store with the given graphId, schema and properties", e);
+                }
             }
         }
 
@@ -530,11 +526,7 @@ public final class Graph {
             }
 
             try {
-                if(schema!=null) {
-                    newStore.initialise(graphId, schema, storeProperties);
-                } else {
-                    newStore.initialise(graphId, storeProperties);
-                }
+                newStore.initialise(graphId, schema, storeProperties);
             } catch (final StoreException e) {
                 throw new IllegalArgumentException("Could not initialise the store with provided arguments.", e);
             }
@@ -544,14 +536,10 @@ public final class Graph {
         private void updateView() {
             if (null == view) {
                 this.view = new View.Builder()
-                        .entities(schema.getEntityGroups())
-                        .edges(schema.getEdgeGroups())
+                        .entities(store.getSchema().getEntityGroups())
+                        .edges(store.getSchema().getEdgeGroups())
                         .build();
             }
-        }
-
-        private Schema cloneSchema(final Schema schema) {
-            return null != schema ? schema.clone() : null;
         }
     }
 }

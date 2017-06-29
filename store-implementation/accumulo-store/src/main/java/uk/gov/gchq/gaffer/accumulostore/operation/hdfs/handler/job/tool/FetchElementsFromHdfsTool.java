@@ -46,7 +46,7 @@ public class FetchElementsFromHdfsTool extends Configured implements Tool {
     public int run(final String[] strings) throws Exception {
         checkHdfsDirectories(operation);
 
-        LOGGER.info("Ensuring table {} exists", store.getProperties().getTable());
+        LOGGER.info("Ensuring table {} exists", store.getTableName());
         TableUtils.ensureTableExists(store);
 
         LOGGER.info("Adding elements from HDFS");
